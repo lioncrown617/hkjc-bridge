@@ -1,0 +1,19 @@
+{
+  "name": "hkjc-bridge",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1",
+    "graphql": "^16.14.0",
+    "graphql-request": "^7.4.0",
+    "hkjc-api": "^1.0.5"
+  }
+}
