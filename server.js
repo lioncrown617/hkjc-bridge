@@ -3,9 +3,19 @@ const { GraphQLClient } = require('graphql-request');
 const { HorseRacingAPI } = require('hkjc-api');
 
 const app = express();
-const gql = new GraphQLClient('https://info.cld.hkjc.com/graphql/base/');
-const api = new HorseRacingAPI();
 const PORT = process.env.PORT || 3000;
+
+const gql = new GraphQLClient('https://info.cld.hkjc.com/graphql/base/', {
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+    'Referer': 'https://bet.hkjc.com/',
+    'Origin': 'https://bet.hkjc.com',
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+  }
+});
+
+const api = new HorseRacingAPI();
 
 const horseOddsQuery = `
 query racing($date: String, $venueCode: String, $oddsTypes: [OddsType], $raceNo: Int) {
@@ -60,7 +70,7 @@ async function getCardMap(venue, raceNo) {
     cardCache[key] = map;
     return map;
   } catch (e) {
-    console.log('[WARN] getCardMap:', e.message.substring(0, 100));
+    console.log('[WARN] getCardMap:', e.message.substring(0, 200));
     return {};
   }
 }
@@ -72,7 +82,7 @@ app.get('/', (req, res) => {
 app.get('/odds', async (req, res) => {
   try {
     const { date, venue, raceno } = req.query;
-    const raceNo = parseInt(raceno) || 1;
+    const raceNo = parseInt(raceno, 10) || 1;
 
     const [oddsData, poolData, cardMap] = await Promise.all([
       gql.request(horseOddsQuery, {
@@ -102,7 +112,8 @@ app.get('/odds', async (req, res) => {
 
     for (const pool of (oddsData.raceMeetings?.[0]?.pmPools || [])) {
       for (const node of (pool.oddsNodes || [])) {
-        const no = String(node.combString).replace(/^0+/, '');
+        const no = String(node.combString || '').replace(/^0+/, '');
+        if (!no) continue;
         if (pool.oddsType === 'WIN') winOddsMap[no] = node.oddsValue;
         if (pool.oddsType === 'PLA') plaOddsMap[no] = node.oddsValue;
       }
@@ -131,19 +142,23 @@ app.get('/odds', async (req, res) => {
       };
     });
 
-    res.json({ ok: true, results, win_pool: winPool });
+    return res.json({ ok: true, results, win_pool: winPool });
   } catch (e) {
     console.error('[ERROR]', e.message.substring(0, 300));
-    res.status(500).json({ ok: false, error: e.message.substring(0, 300) });
+    return res.status(500).json({
+      ok: false,
+      error: e.message,
+      stack: String(e.stack || '').split('\n').slice(0, 5)
+    });
   }
 });
 
 app.get('/meetings', async (req, res) => {
   try {
     const meetings = await api.getActiveMeetings();
-    res.json({ ok: true, meetings });
+    return res.json({ ok: true, meetings });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
+    return res.status(500).json({ ok: false, error: e.message });
   }
 });
 
